@@ -1,2 +1,72 @@
-<h1 style="color: blue;">Moja super strona!</h1>
-<p>Właśnie uczę się hostowania na GitHubie.</p>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mój Ping Pong na GitHubie</title>
+    <style>
+        body { background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: white; font-family: sans-serif; flex-direction: column; }
+        canvas { border: 3px solid white; background: black; }
+    </style>
+</head>
+<body>
+    <h1>Ping Pong w przeglądarce!</h1>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <p>Sterowanie: Strzałki GÓRA / DÓŁ</p>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Parametry (podobnie jak w Twoim Pythonie)
+        let paletkaY = 250;
+        const paletkaSzer = 15, paletkaWys = 100;
+        let pilkaX = 400, pilkaY = 300;
+        let p_x = 5, p_y = 5;
+        const pilkaPromien = 10;
+
+        // Sterowanie
+        let upPressed = false, downPressed = false;
+        document.addEventListener("keydown", (e) => { if(e.key == "ArrowUp") upPressed = true; if(e.key == "ArrowDown") downPressed = true; });
+        document.addEventListener("keyup", (e) => { if(e.key == "ArrowUp") upPressed = false; if(e.key == "ArrowDown") downPressed = false; });
+
+        function draw() {
+            // Czyścimy tło (okno.fill)
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Linia środkowa
+            ctx.strokeStyle = "white";
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath(); ctx.moveTo(400, 0); ctx.lineTo(400, 600); ctx.stroke();
+
+            // Rysujemy paletkę
+            ctx.fillStyle = "white";
+            ctx.fillRect(30, paletkaY, paletkaSzer, paletkaWys);
+
+            // Rysujemy piłkę (ellipse)
+            ctx.beginPath();
+            ctx.arc(pilkaX, pilkaY, pilkaPromien, 0, Math.PI*2);
+            ctx.fill();
+
+            // Logika ruchu (to co miałeś w 'while gra')
+            if(upPressed && paletkaY > 0) paletkaY -= 7;
+            if(downPressed && paletkaY < canvas.height - paletkaWys) paletkaY += 7;
+
+            pilkaX += p_x; pilkaY += p_y;
+
+            if(pilkaY + p_y < 0 || pilkaY + p_y > canvas.height) p_y = -p_y;
+            if(pilkaX + p_x > canvas.width) p_x = -p_x;
+
+            // Kolizja z paletką
+            if(pilkaX - pilkaPromien < 30 + paletkaSzer && pilkaY > paletkaY && pilkaY < paletkaY + paletkaWys) {
+                p_x = -p_x;
+            }
+
+            // Reset
+            if(pilkaX < 0) { pilkaX = 400; pilkaY = 300; p_x = -p_x; }
+
+            requestAnimationFrame(draw);
+        }
+        draw();
+    </script>
+</body>
+</html>
