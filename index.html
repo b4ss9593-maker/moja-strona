@@ -1,101 +1,81 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Ping Pong na GitHubie</title>
+    <title>Szybki Ping Pong</title>
     <style>
-        body { background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: white; font-family: 'Courier New', Courier, monospace; flex-direction: column; }
-        canvas { border: 5px solid white; background: black; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
-        h1 { margin-bottom: 10px; }
+        body { background: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: white; font-family: 'Courier New', monospace; flex-direction: column; }
+        canvas { border: 4px solid #fff; background: #000; box-shadow: 0 0 30px rgba(255,255,255,0.1); }
     </style>
 </head>
 <body>
-    <h1>PING PONG</h1>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <p>Sterowanie: Strzałki GÓRA / DÓŁ</p>
+    <h1 id="score">0 : 0</h1>
+    <canvas id="gameCanvas" width="800" height="500"></canvas>
+    <p>Sterowanie: STRZAŁKI | Prędkość rośnie przy każdym odbiciu!</p>
 
     <script>
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
 
-        // Parametry
-        let paletkaY = 250;
-        const paletkaSzer = 15, paletkaWys = 100;
-        let pilkaX = 400, pilkaY = 300;
-        let p_x = 6, p_y = 6;
-        const pilkaPromien = 10;
+        let p1Score = 0, p2Score = 0;
+        let p1Y = 200, p2Y = 200;
+        let pSzer = 15, pWys = 100;
         
-        // Punkty
-        let punktyGracza = 0;
-        let punktyAI = 0;
+        let bX = 400, bY = 250;
+        let bSpeedX = 5, bSpeedY = 5; // Prędkość początkowa
+        let bSize = 8;
 
-        // Sterowanie
-        let upPressed = false, downPressed = false;
-        document.addEventListener("keydown", (e) => { if(e.key == "ArrowUp") upPressed = true; if(e.key == "ArrowDown") downPressed = true; });
-        document.addEventListener("keyup", (e) => { if(e.key == "ArrowUp") upPressed = false; if(e.key == "ArrowDown") downPressed = false; });
+        let up = false, down = false;
+        document.addEventListener("keydown", (e) => { if(e.key == "ArrowUp") up = true; if(e.key == "ArrowDown") down = true; });
+        document.addEventListener("keyup", (e) => { if(e.key == "ArrowUp")  up = false; if(e.key == "ArrowDown") down = false; });
+
+        function reset() {
+            bX = canvas.width/2; bY = canvas.height/2;
+            bSpeedX = (bSpeedX > 0 ? 5 : -5); // Reset prędkości do bazowej
+            bSpeedY = 5;
+        }
+
+        function update() {
+            if(up && p1Y > 0) p1Y -= 8;
+            if(down && p1Y < canvas.height - pWys) p1Y += 8;
+
+            // Proste AI dla drugiej paletki
+            if(p2Y + pWys/2 < bY) p2Y += 4; else p2Y -= 4;
+
+            bX += bSpeedX; bY += bSpeedY;
+
+            if(bY < 0 || bY > canvas.height) bSpeedY *= -1;
+
+            // Odbicie od gracza (lewa) + PRZYSPIESZENIE
+            if(bX < 30 + pSzer && bY > p1Y && bY < p1Y + pWys) {
+                bSpeedX *= -1.1; // Przyspiesza o 10%
+                bSpeedY *= 1.1;
+                bX = 30 + pSzer; 
+            }
+
+            // Odbicie od AI (prawa)
+            if(bX > canvas.width - 30 - pSzer && bY > p2Y && bY < p2Y + pWys) {
+                bSpeedX *= -1.1;
+                bSpeedY *= 1.1;
+                bX = canvas.width - 30 - pSzer;
+            }
+
+            // Punkty
+            if(bX < 0) { p2Score++; reset(); }
+            if(bX > canvas.width) { p1Score++; reset(); }
+            scoreElement.innerText = `${p1Score} : ${p2Score}`;
+        }
 
         function draw() {
-            // Czyścimy tło
-            ctx.fillStyle = "black";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Linia środkowa
-            ctx.strokeStyle = "white";
-            ctx.setLineDash([10, 10]);
-            ctx.beginPath(); ctx.moveTo(400, 0); ctx.lineTo(400, 600); ctx.stroke();
-
-            // Rysujemy punkty
-            ctx.font = "50px Courier New";
-            ctx.fillText(punktyGracza, 200, 70);
-            ctx.fillText(punktyAI, 550, 70);
-
-            // Rysujemy paletkę (Gracz)
+            ctx.fillStyle = "black"; ctx.fillRect(0,0,canvas.width,canvas.height);
             ctx.fillStyle = "white";
-            ctx.fillRect(30, paletkaY, paletkaSzer, paletkaWys);
-
-            // Rysujemy paletkę (AI - prawa strona)
-            ctx.fillRect(canvas.width - 45, pilkaY - 50, paletkaSzer, paletkaWys);
-
-            // Rysujemy piłkę
-            ctx.beginPath();
-            ctx.arc(pilkaX, pilkaY, pilkaPromien, 0, Math.PI*2);
-            ctx.fill();
-
-            // Ruch paletki
-            if(upPressed && paletkaY > 0) paletkaY -= 8;
-            if(downPressed && paletkaY < canvas.height - paletkaWys) paletkaY += 8;
-
-            // Ruch piłki
-            pilkaX += p_x; pilkaY += p_y;
-
-            // Odbicia góra/dół
-            if(pilkaY + p_y < 0 || pilkaY + p_y > canvas.height) p_y = -p_y;
-
-            // Odbicie od prawej strony (AI)
-            if(pilkaX + p_x > canvas.width - 45) {
-                if(pilkaY > pilkaY - 50 && pilkaY < pilkaY + 50) p_x = -p_x;
-                else { punktyGracza++; resetPilki(); }
-            }
-
-            // Kolizja z Twoją paletką
-            if(pilkaX - pilkaPromien < 30 + paletkaSzer && pilkaY > paletkaY && pilkaY < paletkaY + paletkaWys) {
-                p_x = -p_x;
-                pilkaX = 30 + paletkaSzer + pilkaPromien; // zapobiega zacięciu
-            }
-
-            // Reset jak przegrasz (lewa strona)
-            if(pilkaX < 0) {
-                punktyAI++;
-                resetPilki();
-            }
-
+            ctx.fillRect(30, p1Y, pSzer, pWys); // Gracz
+            ctx.fillRect(canvas.width-45, p2Y, pSzer, pWys); // AI
+            ctx.beginPath(); ctx.arc(bX, bY, bSize, 0, Math.PI*2); ctx.fill(); // Piłka
+            
+            update();
             requestAnimationFrame(draw);
         }
-
-        function resetPilki() {
-            pilkaX = 400; pilkaY = 300;
-            p_x = -p_x;
-        }
-
         draw();
     </script>
 </body>
