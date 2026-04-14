@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Mini CS 2D - GitHub Edition</title>
+    <title>Mini CS 2D - Pro Edition</title>
     <style>
         body { background: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; color: #fff; font-family: 'Segoe UI', sans-serif; flex-direction: column; }
-        canvas { background: #2c3e50; border: 10px solid #222; cursor: crosshair; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
-        .stats { position: absolute; top: 20px; font-size: 28px; font-weight: bold; letter-spacing: 2px; }
-        .ammo-low { color: #ff4757; animation: blink 0.5s infinite; }
+        canvas { background: #2c3e50; border: 8px solid #222; cursor: crosshair; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        .stats { position: absolute; top: 20px; font-size: 28px; font-weight: bold; letter-spacing: 2px; text-shadow: 2px 2px #000; }
+        #ammo.low { color: #ff4757; animation: blink 0.5s infinite; }
         @keyframes blink { 50% { opacity: 0; } }
     </style>
 </head>
 <body>
     <div class="stats">KILLS: <span id="score" style="color: #2ecc71">0</span> | AMMO: <span id="ammo">10</span></div>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <p>WSAD - Ruch | MYSZKA - Strzał | R - Przeładuj</p>
+    <p>WSAD - Ruch | MYSZKA - Strzał | R - Przeładuj / Restart po przegranej</p>
 
     <script>
         const canvas = document.getElementById("gameCanvas");
@@ -21,14 +21,19 @@
         const scoreEl = document.getElementById("score");
         const ammoEl = document.getElementById("ammo");
 
+        // Stan gry
         let player = { x: 400, y: 300, angle: 0, speed: 4 };
         let bullets = [], enemies = [], blood = [];
-        let score = 0, ammo = 10, isReloading = false;
+        let score = 0, ammo = 10, isReloading = false, gameOver = false;
         let keys = {};
 
+        // Obsługa klawiatury i myszki
         window.onkeydown = (e) => {
             keys[e.key.toLowerCase()] = true;
-            if(e.key.toLowerCase() === 'r' && ammo < 10) reload();
+            if(e.key.toLowerCase() === 'r') {
+                if(gameOver) location.reload(); // Restart po przegranej
+                else if(ammo < 10) reload();    // Przeładowanie w trakcie gry
+            }
         };
         window.onkeyup = (e) => keys[e.key.toLowerCase()] = false;
         window.onclick = shoot;
@@ -40,54 +45,62 @@
         function reload() {
             if(isReloading) return;
             isReloading = true;
-            ammoEl.innerText = "RELOADING...";
+            const oldText = ammoEl.innerText;
+            ammoEl.innerText = "REL...";
             setTimeout(() => {
                 ammo = 10;
                 isReloading = false;
                 ammoEl.innerText = ammo;
-            }, 1000);
+                ammoEl.classList.remove('low');
+            }, 800);
         }
 
         function shoot() {
-            if (ammo > 0 && !isReloading) {
-                bullets.push({ x: player.x, y: player.y, angle: player.angle, speed: 12 });
-                ammo--;
-                ammoEl.innerText = ammo;
-                if(ammo === 0) ammoEl.classList.add('ammo-low');
-            }
+            if (gameOver || isReloading || ammo <= 0) return;
+            bullets.push({ x: player.x, y: player.y, angle: player.angle, speed: 12 });
+            ammo--;
+            ammoEl.innerText = ammo;
+            if(ammo === 0) ammoEl.classList.add('low');
         }
 
         function spawnEnemy() {
+            if(gameOver) return;
             const side = Math.floor(Math.random() * 4);
             let x, y;
-            if(side === 0) { x = Math.random() * 800; y = -20; }
-            else if(side === 1) { x = 820; y = Math.random() * 600; }
-            else if(side === 2) { x = Math.random() * 800; y = 620; }
-            else { x = -20; y = Math.random() * 600; }
-            enemies.push({ x, y, speed: 1.2 + (score * 0.1) }); // Wrogowie przyspieszają!
+            if(side === 0) { x = Math.random() * 800; y = -30; }
+            else if(side === 1) { x = 830; y = Math.random() * 600; }
+            else if(side === 2) { x = Math.random() * 800; y = 630; }
+            else { x = -30; y = Math.random() * 600; }
+            enemies.push({ x, y, speed: 1.5 + (score * 0.05) }); 
         }
-        setInterval(spawnEnemy, 1200);
+        setInterval(spawnEnemy, 1000);
 
         function update() {
+            if(gameOver) return;
+
+            // Ruch gracza
             if(keys['w'] && player.y > 20) player.y -= player.speed;
             if(keys['s'] && player.y < 580) player.y += player.speed;
             if(keys['a'] && player.x > 20) player.x -= player.speed;
             if(keys['d'] && player.x < 780) player.x += player.speed;
 
+            // Ruch pocisków
             bullets.forEach((b, bi) => {
                 b.x += Math.cos(b.angle) * b.speed;
                 b.y += Math.sin(b.angle) * b.speed;
                 if(b.x < 0 || b.x > 800 || b.y < 0 || b.y > 600) bullets.splice(bi, 1);
             });
 
+            // Wrogowie i kolizje
             enemies.forEach((e, ei) => {
                 const ang = Math.atan2(player.y - e.y, player.x - e.x);
                 e.x += Math.cos(ang) * e.speed;
                 e.y += Math.sin(ang) * e.speed;
 
+                // Trafienie wroga
                 bullets.forEach((b, bi) => {
                     if(Math.hypot(e.x - b.x, e.y - b.y) < 20) {
-                        for(let i=0; i<5; i++) blood.push({x: e.x, y: e.y, vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5, life: 20});
+                        for(let i=0; i<6; i++) blood.push({x: e.x, y: e.y, vx: (Math.random()-0.5)*6, vy: (Math.random()-0.5)*6, life: 30});
                         enemies.splice(ei, 1);
                         bullets.splice(bi, 1);
                         score++;
@@ -95,12 +108,13 @@
                     }
                 });
 
+                // Kolizja z graczem
                 if(Math.hypot(e.x - player.x, e.y - player.y) < 25) {
-                    alert("GAME OVER! Kills: " + score);
-                    location.reload();
+                    gameOver = true;
                 }
             });
 
+            // Efekt krwi
             blood.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.life--; if(p.life <= 0) blood.splice(i, 1); });
         }
 
@@ -108,7 +122,8 @@
             ctx.fillStyle = "#2c3e50";
             ctx.fillRect(0, 0, 800, 600);
             
-            blood.forEach(p => { ctx.fillStyle = "rgba(231, 76, 60, 0.6)"; ctx.fillRect(p.x, p.y, 4, 4); });
+            // Ślady krwi
+            blood.forEach(p => { ctx.fillStyle = `rgba(231, 76, 60, ${p.life/30})`; ctx.fillRect(p.x, p.y, 4, 4); });
 
             // Gracz
             ctx.save();
@@ -117,24 +132,39 @@
             ctx.fillStyle = "#2ecc71";
             ctx.fillRect(-15, -15, 30, 30);
             ctx.fillStyle = "#333";
-            ctx.fillRect(10, -5, 20, 10);
+            ctx.fillRect(12, -4, 18, 8); // Lufa
             ctx.restore();
 
             // Pociski
             ctx.fillStyle = "#f1c40f";
             bullets.forEach(b => {
                 ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.angle);
-                ctx.fillRect(0, 0, 15, 3); ctx.restore();
+                ctx.fillRect(0, 0, 12, 3); ctx.restore();
             });
 
             // Wrogowie
             ctx.fillStyle = "#e74c3c";
             enemies.forEach(e => {
                 ctx.fillRect(e.x - 15, e.y - 15, 30, 30);
-                ctx.fillStyle = "white"; // Oczy wrogów
-                ctx.fillRect(e.x+5, e.y-10, 5, 5); ctx.fillRect(e.x+5, e.y+5, 5, 5);
+                ctx.fillStyle = "white"; // Oczy
+                ctx.fillRect(e.x+4, e.y-8, 6, 6); ctx.fillRect(e.x+4, e.y+2, 6, 6);
                 ctx.fillStyle = "#e74c3c";
             });
+
+            // Ekran Game Over
+            if(gameOver) {
+                ctx.fillStyle = "rgba(0,0,0,0.85)";
+                ctx.fillRect(0, 0, 800, 600);
+                ctx.fillStyle = "#ff4757";
+                ctx.font = "bold 60px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText("ELIMINACJA", 400, 280);
+                ctx.fillStyle = "white";
+                ctx.font = "24px Arial";
+                ctx.fillText(`Twój wynik: ${score} przeciwników`, 400, 330);
+                ctx.font = "italic 18px Arial";
+                ctx.fillText("Naciśnij 'R', aby wrócić do akcji", 400, 380);
+            }
 
             update();
             requestAnimationFrame(draw);
