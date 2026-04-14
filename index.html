@@ -1,89 +1,118 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Classic Snake</title>
+    <title>Mini CS 2D</title>
     <style>
-        body { background: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: white; font-family: 'Courier New', monospace; flex-direction: column; }
-        canvas { border: 5px solid #2ecc71; background: #000; box-shadow: 0 0 20px rgba(46, 204, 113, 0.2); }
-        h1 { margin: 10px; color: #2ecc71; }
+        body { background: #333; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; color: white; font-family: sans-serif; flex-direction: column; }
+        canvas { background: #444; border: 5px solid #222; cursor: crosshair; }
+        .stats { position: absolute; top: 20px; font-size: 24px; text-shadow: 2px 2px black; }
     </style>
 </head>
 <body>
-    <h1 id="score">Punkty: 0</h1>
-    <canvas id="snakeGame" width="400" height="400"></canvas>
-    <p>Sterowanie: STRZAŁKI</p>
+    <div class="stats">Kills: <span id="score">0</span> | Ammo: <span id="ammo">10</span></div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <p>WSAD - Ruch | MYSZKA - Celowanie | KLIK - Strzał | R - Przeładuj</p>
 
     <script>
-        const canvas = document.getElementById("snakeGame");
+        const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
-        const scoreElement = document.getElementById("score");
+        const scoreEl = document.getElementById("score");
+        const ammoEl = document.getElementById("ammo");
 
-        const box = 20; // rozmiar jednego kwadracika
-        let snake = [{x: 9 * box, y: 10 * box}];
-        let food = { x: Math.floor(Math.random() * 19 + 1) * box, y: Math.floor(Math.random() * 19 + 1) * box };
+        let player = { x: 400, y: 300, angle: 0, speed: 4 };
+        let bullets = [];
+        let enemies = [];
         let score = 0;
-        let d;
+        let ammo = 10;
+        let keys = {};
 
-        document.addEventListener("keydown", direction);
+        window.onkeydown = (e) => keys[e.key.toLowerCase()] = true;
+        window.onkeyup = (e) => keys[e.key.toLowerCase()] = false;
+        window.onclick = shoot;
+        window.onmousemove = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            player.angle = Math.atan2(e.clientY - rect.top - player.y, e.clientX - rect.left - player.x);
+        };
 
-        function direction(event) {
-            if(event.keyCode == 37 && d != "RIGHT") d = "LEFT";
-            else if(event.keyCode == 38 && d != "DOWN") d = "UP";
-            else if(event.keyCode == 39 && d != "LEFT") d = "RIGHT";
-            else if(event.keyCode == 40 && d != "UP") d = "DOWN";
+        function shoot() {
+            if (ammo > 0) {
+                bullets.push({ x: player.x, y: player.y, angle: player.angle, speed: 10 });
+                ammo--;
+                ammoEl.innerText = ammo;
+            }
         }
 
-        function collision(head, array) {
-            for(let i = 0; i < array.length; i++) {
-                if(head.x == array[i].x && head.y == array[i].y) return true;
-            }
-            return false;
+        function spawnEnemy() {
+            const side = Math.floor(Math.random() * 4);
+            let x, y;
+            if(side === 0) { x = Math.random() * 800; y = -20; }
+            else if(side === 1) { x = 820; y = Math.random() * 600; }
+            else if(side === 2) { x = Math.random() * 800; y = 620; }
+            else { x = -20; y = Math.random() * 600; }
+            enemies.push({ x, y, speed: 1.5 + Math.random() * 2 });
+        }
+        setInterval(spawnEnemy, 1500);
+
+        function update() {
+            if(keys['w'] && player.y > 0) player.y -= player.speed;
+            if(keys['s'] && player.y < 600) player.y += player.speed;
+            if(keys['a'] && player.x > 0) player.x -= player.speed;
+            if(keys['d'] && player.x < 800) player.x += player.speed;
+            if(keys['r']) { ammo = 10; ammoEl.innerText = ammo; }
+
+            bullets.forEach((b, bi) => {
+                b.x += Math.cos(b.angle) * b.speed;
+                b.y += Math.sin(b.angle) * b.speed;
+                if(b.x < 0 || b.x > 800 || b.y < 0 || b.y > 600) bullets.splice(bi, 1);
+            });
+
+            enemies.forEach((e, ei) => {
+                const ang = Math.atan2(player.y - e.y, player.x - e.x);
+                e.x += Math.cos(ang) * e.speed;
+                e.y += Math.sin(ang) * e.speed;
+
+                bullets.forEach((b, bi) => {
+                    const dist = Math.hypot(e.x - b.x, e.y - b.y);
+                    if(dist < 20) {
+                        enemies.splice(ei, 1);
+                        bullets.splice(bi, 1);
+                        score++;
+                        scoreEl.innerText = score;
+                    }
+                });
+
+                if(Math.hypot(e.x - player.x, e.y - player.y) < 20) {
+                    alert("GGS! Zabiłeś: " + score);
+                    location.reload();
+                }
+            });
         }
 
         function draw() {
+            ctx.clearRect(0, 0, 800, 600);
+            
+            // Gracz
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(player.angle);
+            ctx.fillStyle = "#2ecc71";
+            ctx.fillRect(-15, -15, 30, 30); // Ciało
             ctx.fillStyle = "black";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(10, -5, 20, 10); // Lufa
+            ctx.restore();
 
-            for(let i = 0; i < snake.length; i++) {
-                ctx.fillStyle = (i == 0) ? "#2ecc71" : "#27ae60";
-                ctx.fillRect(snake[i].x, snake[i].y, box, box);
-                ctx.strokeStyle = "black";
-                ctx.strokeRect(snake[i].x, snake[i].y, box, box);
-            }
+            // Pociski
+            ctx.fillStyle = "yellow";
+            bullets.forEach(b => ctx.fillRect(b.x, b.y, 5, 5));
 
+            // Wrogowie
             ctx.fillStyle = "#e74c3c";
-            ctx.fillRect(food.x, food.y, box, box);
+            enemies.forEach(e => ctx.fillRect(e.x - 15, e.y - 15, 30, 30));
 
-            let snakeX = snake[0].x;
-            let snakeY = snake[0].y;
-
-            if( d == "LEFT") snakeX -= box;
-            if( d == "UP") snakeY -= box;
-            if( d == "RIGHT") snakeX += box;
-            if( d == "DOWN") snakeY += box;
-
-            // Zjedzenie jedzenia
-            if(snakeX == food.x && snakeY == food.y) {
-                score++;
-                scoreElement.innerHTML = "Punkty: " + score;
-                food = { x: Math.floor(Math.random() * 19 + 1) * box, y: Math.floor(Math.random() * 19 + 1) * box };
-            } else {
-                snake.pop();
-            }
-
-            let newHead = { x: snakeX, y: snakeY };
-
-            // Przegrana (ściany lub ogon)
-            if(snakeX < 0 || snakeX >= canvas.width || snakeY < 0 || snakeY >= canvas.height || collision(newHead, snake)) {
-                clearInterval(game);
-                alert("Koniec gry! Twój wynik: " + score);
-                location.reload(); // restart
-            }
-
-            snake.unshift(newHead);
+            update();
+            requestAnimationFrame(draw);
         }
-
-        let game = setInterval(draw, 100); // szybkość gry (100ms)
+        draw();
     </script>
 </body>
 </html>
