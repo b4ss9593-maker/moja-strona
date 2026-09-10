@@ -1,173 +1,147 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="pl">
 <head>
-    <title>Grow.io - Pożeraj i Rośnij</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <style>
-        body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; touch-action: none; }
-        canvas { display: block; }
-        #ui { position: absolute; top: 20px; left: 20px; color: white; font-size: 24px; text-shadow: 2px 2px #000; pointer-events: none; }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quiz — Metody programowania C++</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--ink:#182033;--muted:#68758d;--blue:#315bd6;--green:#178a58;--red:#c23b4a;--line:#dce3ef}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);font:16px system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
+.wrap{max-width:980px;margin:38px auto;padding:0 16px}.top,.card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 24px #1d2a4410}
+.top{padding:22px}.title{display:flex;justify-content:space-between;gap:15px;align-items:center}.title h1{font-size:21px;margin:0}.score{font-weight:700;color:var(--blue)}
+.bar{height:7px;background:#e9edf5;border-radius:9px;margin:18px 0;overflow:hidden}.bar>div{height:100%;background:var(--blue);width:0}
+.grid{display:grid;grid-template-columns:repeat(10,1fr);gap:7px}.num{border:1px solid var(--line);background:#eef2f8;border-radius:7px;padding:7px 0;cursor:pointer;color:#526078}.num.current{outline:2px solid var(--blue);background:#fff}.num.ok{background:#e5f7ee;border-color:#9adbbb;color:#087546}.num.bad{background:#fdecee;border-color:#efb1b8;color:#a32735}
+.legend{font-size:12px;color:var(--muted);margin-top:13px}.card{margin-top:18px;padding:30px}.cat{font-size:13px;font-weight:800;color:var(--blue);letter-spacing:.06em}.q{font-size:22px;font-weight:750;line-height:1.35;margin:10px 0 20px;white-space:pre-wrap}
+.opt{width:100%;text-align:left;padding:15px;margin:6px 0;border:1px solid var(--line);border-radius:11px;background:#f0f3f8;cursor:pointer;font-size:16px}.opt:hover{border-color:#9db0e9}.opt.correct{background:#e5f7ee;border-color:#62bd91}.opt.wrong{background:#fdecee;border-color:#df7c87}.feedback{min-height:45px;margin:12px 2px;color:#4d5a70;line-height:1.4}
+.nav{display:flex;justify-content:space-between;margin-top:18px}.nav button,.reset{padding:11px 20px;border-radius:9px;border:1px solid var(--line);background:#fff;cursor:pointer}.next{background:var(--blue)!important;color:#fff!important}.badge{display:inline-block;margin-left:7px;padding:3px 8px;border-radius:999px;background:#fff1cf;color:#875b00;font-size:11px}
+code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+@media(max-width:650px){.wrap{margin:12px auto}.grid{grid-template-columns:repeat(8,1fr)}.card{padding:20px}.q{font-size:19px}.title{align-items:flex-start;flex-direction:column}}
+</style>
 </head>
-<body>
-    <div id="ui">Masa: <span id="mass">10</span></div>
-    <canvas id="gameCanvas"></canvas>
+<body><main class="wrap">
+<section class="top">
+ <div class="title"><h1>C++ Quiz — Metody programowania</h1><div class="score" id="score"></div></div>
+ <div class="bar"><div id="progress"></div></div>
+ <div class="grid" id="grid"></div>
+ <div class="legend">Zielone — poprawne · czerwone — błędne · obramowanie — bieżące</div>
+</section>
+<section class="card">
+ <div class="cat" id="cat"></div>
+ <div class="q" id="question"></div>
+ <div id="options"></div>
+ <div class="feedback" id="feedback"></div>
+ <div class="nav"><button onclick="go(-1)">← Wstecz</button><button class="reset" onclick="resetQuiz()">Reset</button><button class="next" onclick="go(1)">Dalej →</button></div>
+</section>
+</main>
+<script>
+const base=[
+["DODATKOWE · TEST 6","Poprawna definicja wskaźnika x to:",["int x = 1;","int *x = 0;","int &x = 0;","int &x;"],1,"int *x deklaruje wskaźnik do int."],
+["DODATKOWE · TEST 6","Operatorem pobrania adresu jest:",["*","&","#","$"],1,"Operator & pobiera adres obiektu."],
+["DODATKOWE · TEST 6","Dla int i, *wi=&i; jak zapisać 5 do i przez wi?",["wi = 5;","&wi = 5;","wi* = 5;","*wi = 5;"],3,"Dereferencja *wi daje obiekt wskazywany przez wi."],
+["DODATKOWE · TEST 6","Dla metody K1& f1(); która definicja poprawnie zwraca bieżący obiekt?",["K1& K1::f1(){return &this;}","K1& K1::f1(){return *this;}","K1& K1::f1(){return this;}","K1& K1::f1(){return x;}"],1,"this jest wskaźnikiem, więc *this jest bieżącym obiektem."],
+["DODATKOWE · TEST 6","Która definicja klasy nie zawiera błędu?",["class A { A *b_; A tab[5]; };","class A { A *a; int *i; };","class A { A a_; int *i_; };","class A { &A a_; };"],1,"Klasa może zawierać wskaźnik do własnego typu, ale nie pełny obiekt własnego typu."],
+["DODATKOWE · TEST 6","double a=4,b=2; double x=1/2*(a+b); Ile wynosi x?",["6","0","3","12"],1,"1/2 to dzielenie całkowite, więc daje 0."],
+["DODATKOWE · TEST 5","Jaka jest podstawowa różnica między struct i class?",["struct: domyślnie public, class: domyślnie private","struct ma tylko prywatne metody","Nie ma różnic","struct nie może mieć metod"],0,"Domyślny dostęp w struct to public, a w class — private."],
+["DODATKOWE · TEST 5","Dla A* wsk = new A; poprawne zwolnienie pamięci to:",["delete wsk;","delete *wsk;","delete[] wsk;","Pamięć zwolni się automatycznie"],0,"Pojedyncze new parujemy z delete."],
+["DODATKOWE · TEST 6","Poprawna deklaracja konstruktora domyślnego klasy A to:",["void A();","A();","A(int a);","void A(void);"],1,"Konstruktor nie ma typu zwracanego."],
+["DODATKOWE · TEST 6","int* wsk = new int[10]; oznacza:",["jeden int o wartości 10","tablicę 10 obiektów int","tablicę 10 wskaźników int*","10 intów z wartością 10"],1,"new int[10] tworzy dynamiczną tablicę dziesięciu intów."],
+["DODATKOWE · TEST 6","Jeśli A ma konstruktor domyślny, co zrobi A *a = new A[3];?",["wywoła A(int) z argumentem 3","3 razy wywoła konstruktor domyślny","3 razy wywoła konstruktor kopiujący","utworzy tablicę 3 wskaźników"],1,"Tworzone są trzy obiekty A, każdy konstrukcją domyślną."],
+["DODATKOWE · TEST 5","Modyfikator powodujący, że pole klasy jest wspólne dla wszystkich obiektów, to:",["const","common","static","forall"],2,"Składowa static należy do klasy, a nie do pojedynczego obiektu."],
+["DODATKOWE · TEST 5","Najbardziej zewnętrzny zasięg przestrzeni nazw to:",["lokalny","klasy","funkcji main()","globalny"],3,"Najbardziej zewnętrzny jest zasięg globalny."],
+["DODATKOWE · TEST 5","Jeśli nie zdefiniowano konstruktora kopiującego i jest on niejawnie dostępny, A ob2(ob1) kopiuje pola:",["operatorem =","nie kopiuje ich","składowa po składowej","zawsze surowo bit po bicie"],2,"Niejawny konstruktor kopiujący wykonuje kopiowanie składowych."],
+["DODATKOWE · TEST 6","Który fragment wywołuje konstruktor kopiujący klasy A?",["A a; A b(a);","A *a=new A[10];","A *a=new A;","A **a=new A*[10];"],0,"b jest konstruowany na podstawie istniejącego a."],
+["DODATKOWE · TEST 6","Poprawna definicja destruktora klasy A to:",["~A(){}","~void A(){}","void ~A(){}","~A();"],0,"~A(){} jest definicją destruktora; nie ma on typu zwracanego."],
+["DODATKOWE · TEST 6","Operator + realizowany jako metoda klasy K2 i niemodyfikujący lewego obiektu powinien mieć deklarację:",["friend K2 operator+(const K2&) const;","K2 operator+(const K2&, const K2&);","friend K2 operator+(const K2&, const K2&);","K2 operator+(const K2&) const;"],3,"Metoda ma niejawny lewy operand this, więc potrzebuje jednego jawnego parametru."],
+["DODATKOWE · TEST 6","Poprawna deklaracja kopiującego operatora przypisania klasy K4 to:",["friend K4& operator=(const K4&,const K4&);","K4& operator=(const K4&,const K4&);","K4& operator=(const K4&) const;","K4& operator=(const K4&);"],3,"Operator = musi być niestatyczną metodą i typowo przyjmuje const K4&."],
+["SZABLONY","template<class T> i template<typename T> dla parametru typu:",["są równoważne","class działa tylko dla klas","typename działa tylko dla typów prostych","pierwszy zapis jest błędny"],0,"Dla parametru typu class i typename są tu równoważne."],
+["SZABLONY","W template<size_t N> parametr N jest:",["typem","wartością typu size_t","wskaźnikiem","referencją"],1,"To parametr nietypowy — wartość typu size_t."],
+["SZABLONY","Dla template<size_t N> struct Arr{int a[N];}; zapis Arr<10> oznacza:",["N jest typem int","N=10","tablica ma 11 elementów","błąd składni"],1,"10 jest argumentem wartościowym szablonu, więc N przyjmuje 10."],
+["SZABLONY","Który zapis jest deklaracją szablonu funkcji max dla dwóch argumentów tego samego typu?",["template<typename T> T max(T a,T b);","template<T> T max(T,T);","typename<T> max(T,T);","template<int T> T max(T,T);"],0,"Parametr typu T deklaruje się po template<typename T> lub template<class T>."],
+["SZABLONY","Pełna specjalizacja Box dla bool ma postać:",["template<bool> class Box {};","template<> class Box<bool> {};","template<class bool> class Box {};","class Box<>bool {};"],1,"Pełna specjalizacja zaczyna się od template<> i wskazuje konkretny argument."],
+["SZABLONY","template<class T> using Vec = std::vector<T>; definiuje:",["klasę pochodną","alias szablonu","specjalizację","funkcję"],1,"using w tej formie tworzy alias szablonu."],
+["WSKAŹNIKI","double t[7] = {}; double *a=&t[5]; Ile wynosi a-t?",["2","5","7","40"],1,"Odejmowanie wskaźników w tej samej tablicy daje różnicę indeksów: 5-0=5."],
+["WSKAŹNIKI","int t[6]={}; int *p=&t[2], *q=&t[5]; Ile wynosi p-q?",["-3","3","-12","12"],0,"Różnica pozycji to 2-5=-3."],
+["PAMIĘĆ","Która para jest prawidłowa?",["new[] i delete","new[] i delete[]","new i delete[]","malloc i delete"],1,"Pamięć przydzieloną new[] zwalniamy delete[]."],
+["KLASY","Co oznacza A obj(); w typowym kontekście deklaracji C++?",["obiekt A","funkcję obj zwracającą A","wskaźnik do A","destruktor"],1,"To klasyczny most vexing parse: deklaracja funkcji."],
+["FRIEND","friend class B; wewnątrz klasy A oznacza, że:",["A ma dostęp do private B","B ma dostęp do private/protected A","przyjaźń działa w obie strony","B dziedziczy po A"],1,"A nadaje klasie B dostęp do swoich składowych niepublicznych."],
+["OPERATORY","Aby obsłużyć 2 * ob, gdzie ob jest typu K6, naturalna sygnatura funkcji niemember to:",["K6 operator*(int,const K6&);","K6::operator*(int);","int operator*(K6,int);","K6 operator*(const K6&);"],0,"Lewy operand jest int, więc operator jako funkcja niemember przyjmuje int i K6."],
+["OPERATORY","Poprawny typ zwracany operatora << dla ostream to najczęściej:",["std::ostream","std::ostream&","void","bool"],1,"Zwracamy std::ostream&, aby umożliwić łańcuchowe <<."],
+["KLASY","Obiekt A ob; pole publiczne x ustawiamy przez:",["ob->x=5;","ob.x=5;","*ob.x=5;","A::x=5;"],1,"Dla obiektu używamy operatora kropki."],
+["WSKAŹNIKI","A* p=&ob; publiczne pole x ustawiamy przez:",["p.x=5;","p->x=5;","*p.x=5;","&p.x=5;"],1,"Dla wskaźnika do obiektu używamy ->."],
+["LINKOWANIE","extern C c; oznacza zasadniczo:",["definicję nowego c","deklarację obiektu zdefiniowanego gdzie indziej","dynamiczną alokację","stałą globalną"],1,"extern deklaruje nazwę z zewnętrznym powiązaniem bez tworzenia tu definicji obiektu."],
+["TABLICE","Czy funkcja może zwrócić surową tablicę int[10] przez wartość jako swój typ zwracany?",["tak","nie","tylko z const","tylko w main"],1,"Wbudowana surowa tablica nie jest zwracana przez wartość jako typ wyniku funkcji."],
+["TABLICE","Który typ można normalnie zwrócić przez wartość?",["surowe int[10]","std::array<int,10>","referencję do nieistniejącego lokalnego obiektu","void[10]"],1,"std::array jest zwykłym typem obiektowym i może być zwracany przez wartość."],
+["DZIEDZICZENIE","Czy klasa pochodna może ogólnie uzyskać dostęp do odziedziczonej składowej protected zgodnie z regułami protected?",["tak","nigdy","tylko jeśli jest static","tylko przez main"],0,"protected jest dostępne dla klasy pochodnej, z dodatkowymi regułami dotyczącymi obiektu, przez który następuje dostęp."],
+["DZIEDZICZENIE","W metodzie P::fun(const B& z), gdzie P dziedziczy po B, dostęp z.x do protected B::x przez niezależny obiekt bazowy z jest:",["zawsze poprawny","niepoprawny","poprawny tylko gdy x jest int","poprawny dzięki const"],1,"Klasa pochodna nie może w ten sposób korzystać z protected poprzez dowolny obiekt bazowego typu B."],
+["WYJĄTKI","Poprawny schemat obsługi wyjątku typu int to:",["try{} catch(int){}","try/catch case(int)","int{} try(catch){}","case{try}catch{int}"],0,"W C++ używa się bloku try, po którym występuje catch(int)."],
+["KONSTRUKTORY","Konstruktor klasy A:",["musi zwracać void","nie ma typu zwracanego","zawsze zwraca A&","musi być static"],1,"Konstruktor nie ma deklarowanego typu zwracanego."]
+];
 
-    <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-        const massEl = document.getElementById("mass");
+// Dopełniamy pulę do 80 wariantami sprawdzającymi te same mechanizmy.
+const variants=[
+["WARIANT","double x=1.0/2*(4+2); Ile wynosi x?",["0","3","6","12"],1,"1.0/2 to 0.5, a 0.5*6=3."],
+["WARIANT","int x=7; int *p=&x; Co daje *p?",["adres p","adres x","wartość 7","typ int*"],2,"*p dereferencjonuje wskaźnik i daje wskazywaną wartość."],
+["WARIANT","int x=7; int *p=&x; Co daje p?",["adres x","wartość 7","referencję","kopię x"],0,"p przechowuje adres x."],
+["WARIANT","Dla new A[5] poprawne zwolnienie to:",["delete p","delete[] p","free(p)","destruct p"],1,"new[] parujemy z delete[]."],
+["WARIANT","Który zapis tworzy zwykły obiekt A konstruktorem domyślnym?",["A a;","A a();","A* a;","extern A a;"],0,"A a; definiuje obiekt; A a(); deklaruje funkcję."],
+["WARIANT","Jeżeli funkcja przyjmuje const A& a, to parametr jest:",["kopią A","stałą referencją do A","wskaźnikiem","tablicą"],1,"const A& jest referencją bez kopiowania, przez którą nie modyfikujemy obiektu standardowymi operacjami."],
+["WARIANT","Który zapis jest wskaźnikiem do int?",["int& p","int* p","int p","int[] p"],1,"Gwiazdka w deklaratorze oznacza wskaźnik."],
+["WARIANT","Który zapis jest referencją do int?",["int& r=x;","int* r=x;","int r=&x;","ref int r;"],0,"int& deklaruje referencję."],
+["WARIANT","Operator przypisania jako metoda klasy ma ile jawnych operandów dla zwykłego binarnego =?",["0","1","2","3"],1,"Lewy operand to *this, więc jawny jest prawy operand."],
+["WARIANT","W metodzie klasy this jest:",["obiektem","wskaźnikiem na bieżący obiekt","referencją globalną","typem"],1,"this jest wskaźnikiem na bieżący obiekt."],
+["WARIANT","*this oznacza:",["adres obiektu","bieżący obiekt","destruktor","kopię wskaźnika"],1,"Dereferencja this daje bieżący obiekt."],
+["WARIANT","Które wyrażenie daje adres zmiennej x?",["*x","&x","x&","->x"],1,"Jednoargumentowe & pobiera adres."],
+["WARIANT","Jeśli p=&t[1], q=&t[4], to q-p wynosi:",["-3","3","4","zależy od sizeof"],1,"Różnica indeksów wynosi 4-1=3 elementy."],
+["WARIANT","Jeśli p=&t[4], q=&t[1], to p-q wynosi:",["3","-3","12","1"],0,"Różnica indeksów wynosi 4-1=3."],
+["WARIANT","template<int N> oznacza, że N jest:",["typem","wartością int","klasą","wskaźnikiem"],1,"N jest nietypowym parametrem szablonu typu int."],
+["WARIANT","template<typename T> oznacza, że T jest:",["parametrem typu","wartością int","obiektem globalnym","funkcją"],0,"typename w tej pozycji deklaruje parametr typu."],
+["WARIANT","Czy template<struct T> jest zamiennikiem template<class T> dla parametru typu?",["tak","nie","tylko dla struct","tylko w C"],1,"W liście parametrów szablonu dla parametru typu stosuje się class lub typename, nie struct."],
+["WARIANT","class A { int x; }; domyślny dostęp do x to:",["public","private","protected","global"],1,"W class domyślny dostęp jest private."],
+["WARIANT","struct A { int x; }; domyślny dostęp do x to:",["public","private","protected","static"],0,"W struct domyślny dostęp jest public."],
+["WARIANT","Czy friend jest automatycznie symetryczne?",["tak","nie","tylko dla operatorów","tylko przy dziedziczeniu"],1,"Jeśli A zaprzyjaźnia B, nie oznacza to automatycznie odwrotnej relacji."],
+["WARIANT","Czy friend class B; powoduje dziedziczenie B po A?",["tak","nie","tylko public","tylko protected"],1,"Przyjaźń i dziedziczenie są odrębnymi mechanizmami."],
+["WARIANT","Który operator służy do dostępu do pola przez wskaźnik do obiektu?",[".","->","::","&"],1,"Wskaźnik do obiektu korzysta z ->."],
+["WARIANT","Który operator służy do dostępu do pola przez obiekt?",[".","->","*","::"],0,"Dla obiektu używa się kropki."],
+["WARIANT","new A tworzy:",["pojedynczy dynamiczny obiekt A","tablicę A","wskaźnik bez obiektu","obiekt automatyczny"],0,"new A tworzy pojedynczy obiekt o dynamicznym czasie przechowywania."],
+["WARIANT","new A[4] tworzy:",["4 wskaźniki","4 obiekty A","jeden A z wartością 4","referencję"],1,"Nawiasy [] oznaczają dynamiczną tablicę czterech A."],
+["WARIANT","Czy destruktor ma typ zwracany void?",["tak","nie","tylko w struct","tylko virtual"],1,"Destruktor nie ma typu zwracanego."],
+["WARIANT","Nazwa destruktora klasy K to:",["K","~K","delete K","K~"],1,"Destruktor ma nazwę klasy poprzedzoną ~."],
+["WARIANT","static int x; jako składowa klasy jest:",["osobna w każdym obiekcie","wspólna dla klasy","lokalna dla main","referencją"],1,"Statyczna składowa danych jest współdzielona przez obiekty klasy."],
+["WARIANT","A b=a; przy typowym kopiowaniu obiektu A jest:",["inicjalizacją kopiującą","zawsze przypisaniem","destrukcją","alokacją new"],0,"Nowy obiekt b jest inicjalizowany z a."],
+["WARIANT","a=b; gdy oba obiekty już istnieją, używa:",["konstruktora kopiującego","operatora przypisania","destruktora","new"],1,"Przypisanie między istniejącymi obiektami korzysta z operatora =."],
+["WARIANT","Czy niejawne kopiowanie obiektu oznacza zawsze memcpy bit po bicie?",["tak","nie","tylko dla klas","tylko dla int"],1,"Konstruktor kopiujący ma semantykę kopiowania baz i składowych, nie ogólną gwarancję memcpy."],
+["WARIANT","std::vector<int> można zwrócić z funkcji przez wartość?",["tak","nie","tylko wskaźnikiem","tylko jako static"],0,"vector jest typem obiektowym obsługującym zwracanie przez wartość."],
+["WARIANT","std::array<int,5> można zwrócić z funkcji przez wartość?",["tak","nie","tylko jako C-array","tylko przez new"],0,"std::array jest typem obiektowym."],
+["WARIANT","Nazwa tablicy t w wielu wyrażeniach przekształca się do:",["t[1]","&t[0]","sizeof(t)","nullptr"],1,"W typowych wyrażeniach tablica ulega konwersji do wskaźnika na pierwszy element."],
+["WARIANT","Jeśli int t[5]; to t+1 wskazuje na:",["następny bajt","t[1]","t[0]","koniec tablicy"],1,"Arytmetyka wskaźników przesuwa się o elementy danego typu."],
+["WARIANT","Czy różnica dwóch wskaźników do elementów tej samej tablicy jest liczona w bajtach?",["tak","nie, w elementach","zawsze w bitach","zawsze w KB"],1,"Odejmowanie wskaźników daje różnicę pozycji w elementach."],
+["WARIANT","friend ostream& operator<<(ostream&, const A&); jest:",["deklaracją operatora strumieniowego friend","konstruktorem","destruktorem","operatorem ="],0,"To deklaracja zaprzyjaźnionego operatora <<."],
+["WARIANT","Po co operator<< zwykle zwraca ostream&?",["by umożliwić łańcuchowanie <<","by alokować pamięć","by wywołać destruktor","by stworzyć kopię strumienia"],0,"Referencja do strumienia pozwala pisać cout << a << b."],
+["WARIANT","Czy obiekt klasy musi być tworzony wyłącznie w main()?",["tak","nie","tylko dynamiczny","tylko globalny"],1,"Obiekty mogą być tworzone także w innych funkcjach, globalnie i dynamicznie."],
+["WARIANT","A* p=new A; po delete p wskaźnik p:",["automatycznie staje się nullptr","nadal może zawierać stary adres, ale nie wolno dereferencjonować go jako żywego obiektu","wskazuje na nowy A","staje się referencją"],1,"delete niszczy obiekt i zwalnia pamięć, ale sam nie ustawia zwykłego wskaźnika na nullptr."]
+];
 
-        // Ustawienia świata
-        const WORLD_SIZE = 3000; // Wielkość mapy
-        let canvasW, canvasH;
-        let player = { x: WORLD_SIZE/2, y: WORLD_SIZE/2, radius: 20, color: "#2ecc71" };
-        let food = [];
-        let enemies = [];
-        let mouse = { x: 0, y: 0 };
-        let gameOver = false;
+let questions=[...base,...variants].slice(0,80);
+while(questions.length<80){ questions.push(variants[questions.length%variants.length]); }
 
-        function resize() {
-            canvasW = window.innerWidth;
-            canvasH = window.innerHeight;
-            canvas.width = canvasW;
-            canvas.height = canvasH;
-        }
-        window.onresize = resize;
-        resize();
-
-        // Inicjalizacja jedzenia i przeciwników
-        for(let i=0; i<500; i++) spawnFood();
-        for(let i=0; i<30; i++) spawnEnemy();
-
-        function spawnFood() {
-            food.push({
-                x: Math.random() * WORLD_SIZE,
-                y: Math.random() * WORLD_SIZE,
-                radius: 5,
-                color: `hsl(${Math.random() * 360}, 70%, 60%)`
-            });
-        }
-
-        function spawnEnemy() {
-            enemies.push({
-                x: Math.random() * WORLD_SIZE,
-                y: Math.random() * WORLD_SIZE,
-                radius: 15 + Math.random() * 100,
-                color: "#e74c3c",
-                vx: (Math.random() - 0.5) * 2,
-                vy: (Math.random() - 0.5) * 2
-            });
-        }
-
-        // Sterowanie
-        const handleInput = (e) => {
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            mouse.x = clientX - canvasW/2;
-            mouse.y = clientY - canvasH/2;
-        };
-        window.onmousemove = handleInput;
-        window.ontouchmove = handleInput;
-
-        function update() {
-            if(gameOver) return;
-
-            // Ruch gracza w stronę myszki/palca
-            let dist = Math.hypot(mouse.x, mouse.y);
-            if(dist > 5) {
-                let speed = 5 * (20 / player.radius); // Im większy, tym wolniejszy
-                player.x += (mouse.x / dist) * speed;
-                player.y += (mouse.y / dist) * speed;
-            }
-
-            // Granice świata
-            player.x = Math.max(0, Math.min(WORLD_SIZE, player.x));
-            player.y = Math.max(0, Math.min(WORLD_SIZE, player.y));
-
-            // Zjadanie jedzenia
-            food.forEach((f, i) => {
-                if(Math.hypot(player.x - f.x, player.y - f.y) < player.radius) {
-                    food.splice(i, 1);
-                    player.radius += 0.5;
-                    massEl.innerText = Math.floor(player.radius);
-                    spawnFood();
-                }
-            });
-
-            // Logika przeciwników
-            enemies.forEach((e, i) => {
-                e.x += e.vx; e.y += e.vy;
-                // Odbijanie od ścian
-                if(e.x < 0 || e.x > WORLD_SIZE) e.vx *= -1;
-                if(e.y < 0 || e.y > WORLD_SIZE) e.vy *= -1;
-
-                let distToPlayer = Math.hypot(player.x - e.x, player.y - e.y);
-                
-                if(distToPlayer < player.radius + e.radius - 5) {
-                    if(player.radius > e.radius * 1.1) {
-                        // My zjadamy bota
-                        player.radius += e.radius * 0.2;
-                        enemies.splice(i, 1);
-                        spawnEnemy();
-                        massEl.innerText = Math.floor(player.radius);
-                    } else if(e.radius > player.radius * 1.1) {
-                        // Bot zjada nas
-                        gameOver = true;
-                    }
-                }
-            });
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvasW, canvasH);
-
-            // Kamera podąża za graczem
-            ctx.save();
-            ctx.translate(canvasW/2 - player.x, canvasH/2 - player.y);
-
-            // Rysowanie siatki tła
-            ctx.strokeStyle = "#333";
-            ctx.lineWidth = 2;
-            for(let i=0; i<=WORLD_SIZE; i+=100) {
-                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, WORLD_SIZE); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(WORLD_SIZE, i); ctx.stroke();
-            }
-
-            // Rysowanie jedzenia
-            food.forEach(f => {
-                ctx.fillStyle = f.color;
-                ctx.beginPath(); ctx.arc(f.x, f.y, f.radius, 0, Math.PI*2); ctx.fill();
-            });
-
-            // Rysowanie przeciwników
-            enemies.forEach(e => {
-                ctx.fillStyle = e.color;
-                ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI*2); ctx.fill();
-            });
-
-            // Rysowanie gracza
-            ctx.fillStyle = player.color;
-            ctx.beginPath(); ctx.arc(player.x, player.y, player.radius, 0, Math.PI*2); ctx.fill();
-            ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.stroke();
-
-            ctx.restore();
-
-            if(gameOver) {
-                ctx.fillStyle = "rgba(0,0,0,0.8)";
-                ctx.fillRect(0, 0, canvasW, canvasH);
-                ctx.fillStyle = "white";
-                ctx.textAlign = "center";
-                ctx.font = "40px Arial";
-                ctx.fillText("ZOSTAŁEŚ POŻARTY!", canvasW/2, canvasH/2);
-                ctx.font = "20px Arial";
-                ctx.fillText("Odśwież stronę, aby spróbować ponownie", canvasW/2, canvasH/2 + 50);
-            }
-
-            update();
-            requestAnimationFrame(draw);
-        }
-        draw();
-    </script>
-</body>
-</html>
+let state=JSON.parse(localStorage.getItem("cppQuizState")||"{}");
+let current=Number(localStorage.getItem("cppQuizCurrent")||0);
+function save(){localStorage.setItem("cppQuizState",JSON.stringify(state));localStorage.setItem("cppQuizCurrent",current)}
+function render(){
+ const q=questions[current], grid=document.getElementById("grid"); grid.innerHTML="";
+ questions.forEach((_,i)=>{let b=document.createElement("button");b.className="num"+(i===current?" current":"")+(state[i]?.ok?" ok":state[i]&&state[i].ok===false?" bad":"");b.textContent=i+1;b.onclick=()=>{current=i;save();render()};grid.appendChild(b)});
+ const done=Object.keys(state).length, good=Object.values(state).filter(x=>x.ok).length;
+ document.getElementById("score").textContent=`${good} / ${done} · ${done?Math.round(good/done*100):0}%`;
+ document.getElementById("progress").style.width=(done/questions.length*100)+"%";
+ document.getElementById("cat").innerHTML=`${q[0]} · PYTANIE ${current+1} Z ${questions.length}`+(q[0].includes("DODATKOWE")?'<span class="badge">DODATKOWE</span>':'');
+ document.getElementById("question").textContent=q[1];
+ let box=document.getElementById("options");box.innerHTML="";
+ q[2].forEach((o,i)=>{let b=document.createElement("button");b.className="opt";b.innerHTML=`<b>${String.fromCharCode(65+i)}</b> &nbsp; ${escapeHtml(o)}`;if(state[current]){if(i===q[3])b.classList.add("correct");if(i===state[current].pick&&i!==q[3])b.classList.add("wrong");b.disabled=true}else b.onclick=()=>answer(i);box.appendChild(b)});
+ document.getElementById("feedback").textContent=state[current]?q[4]:"";
+}
+function escapeHtml(s){return s.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")}
+function answer(i){let q=questions[current];state[current]={pick:i,ok:i===q[3]};save();render()}
+function go(d){current=Math.max(0,Math.min(questions.length-1,current+d));save();render()}
+function resetQuiz(){if(confirm("Wyzerować wszystkie odpowiedzi i wynik?")){state={};current=0;localStorage.removeItem("cppQuizState");localStorage.removeItem("cppQuizCurrent");render()}}
+render();
+</script></body></html>
